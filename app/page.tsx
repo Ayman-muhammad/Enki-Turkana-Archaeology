@@ -75,7 +75,15 @@ export default function Page() {
   const [uploadedTile, setUploadedTile] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isDespeckled, setIsDespeckled] = useState(false);
+  const [historicalMap, setHistoricalMap] = useState<string | null>(null);
+  const [showHistoricalOverlay, setShowHistoricalOverlay] = useState(false);
+  const [historicalOpacity, setHistoricalOpacity] = useState(0.5);
+  const [isHistoricalDifference, setIsHistoricalDifference] = useState(false);
+  const [isHistoricalDragging, setIsHistoricalDragging] = useState(false);
+  const [coords, setCoords] = useState({ lat: '', lon: '' });
+  const [coordErrors, setCoordErrors] = useState({ lat: '', lon: '' });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const historicalInputRef = React.useRef<HTMLInputElement>(null);
 
   const images = {
     rgb: uploadedTile || "https://picsum.photos/seed/archaeo_rgb/800/800",
@@ -112,6 +120,58 @@ export default function Page() {
 
   const onDragLeave = () => {
     setIsDragging(false);
+  };
+
+  const handleHistoricalUpload = (file: File) => {
+    if (file && (file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/tiff")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setHistoricalMap(e.target?.result as string);
+        setShowHistoricalOverlay(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onHistoricalDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsHistoricalDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleHistoricalUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const validateCoords = () => {
+    const errors = { lat: '', lon: '' };
+    const latNum = parseFloat(coords.lat);
+    const lonNum = parseFloat(coords.lon);
+
+    if (coords.lat === '') {
+      errors.lat = 'Latitude is required';
+    } else if (isNaN(latNum) || latNum < -90 || latNum > 90) {
+      errors.lat = 'Enter latitude between -90 and 90';
+    }
+
+    if (coords.lon === '') {
+      errors.lon = 'Longitude is required';
+    } else if (isNaN(lonNum) || lonNum < -180 || lonNum > 180) {
+      errors.lon = 'Enter longitude between -180 and 180';
+    }
+
+    setCoordErrors(errors);
+    return !errors.lat && !errors.lon;
+  };
+
+  const handleFetchTile = () => {
+    if (validateCoords()) {
+      setAnalyzing(true);
+      // Simulate fetching
+      setTimeout(() => {
+        setAnalyzing(false);
+        setActiveTab('rgb');
+        // In a real app, this would reset images or fetch new ones
+      }, 1500);
+    }
   };
 
   const bandInfluence = [
@@ -259,14 +319,34 @@ export default function Page() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="font-mono text-[10px] uppercase opacity-50">Latitude</label>
-                  <input type="text" placeholder="3.5852" className="w-full border border-[#141414] p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" />
+                  <input 
+                    type="text" 
+                    placeholder="3.5852" 
+                    value={coords.lat}
+                    onChange={(e) => setCoords({ ...coords, lat: e.target.value })}
+                    className={`w-full border ${coordErrors.lat ? 'border-red-500' : 'border-[#141414]'} p-3 font-mono text-sm focus:outline-none focus:bg-gray-50`} 
+                  />
+                  {coordErrors.lat && <span className="font-mono text-[8px] text-red-500 uppercase">{coordErrors.lat}</span>}
                 </div>
                 <div className="space-y-1">
                   <label className="font-mono text-[10px] uppercase opacity-50">Longitude</label>
-                  <input type="text" placeholder="35.8617" className="w-full border border-[#141414] p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" />
+                  <input 
+                    type="text" 
+                    placeholder="35.8617" 
+                    value={coords.lon}
+                    onChange={(e) => setCoords({ ...coords, lon: e.target.value })}
+                    className={`w-full border ${coordErrors.lon ? 'border-red-500' : 'border-[#141414]'} p-3 font-mono text-sm focus:outline-none focus:bg-gray-50`} 
+                  />
+                  {coordErrors.lon && <span className="font-mono text-[8px] text-red-500 uppercase">{coordErrors.lon}</span>}
                 </div>
               </div>
-              <button className="w-full bg-[#141414] text-[#E4E3E0] py-4 font-mono text-[10px] uppercase tracking-widest hover:opacity-90 transition-all"> Fetch Satellite Tile </button>
+              <button 
+                onClick={handleFetchTile}
+                disabled={analyzing}
+                className="w-full bg-[#141414] text-[#E4E3E0] py-4 font-mono text-[10px] uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+              > 
+                {analyzing ? 'Accessing Satellite Constellation...' : 'Fetch Satellite Tile'}
+              </button>
             </div>
           </div>
           
@@ -301,6 +381,49 @@ export default function Page() {
                 <Zap size={10} /> Valid Raster Source Ingested
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Historical Map Alignment */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 border border-[#141414] p-8 bg-white border-t-0">
+          <div className="space-y-6">
+            <h3 className="font-mono text-xl uppercase tracking-tighter">Historical Map Alignment</h3>
+            <p className="text-sm font-serif italic opacity-60">
+              Upload archival cartographic data (e.g., 19th-century colonial maps or early aerial surveys) to align with modern satellite infrastructure.
+            </p>
+            {historicalMap && (
+              <div className="flex items-center gap-4 p-4 bg-gray-50 border border-dashed border-[#141414]/20">
+                <div className="relative w-16 h-16 border border-[#141414]/10 bg-white">
+                  <Image src={historicalMap} alt="Historical" fill className="object-cover sepia" referrerPolicy="no-referrer" />
+                </div>
+                <div className="flex-1">
+                  <span className="font-mono text-[10px] uppercase font-bold block">Source Aligned</span>
+                  <button onClick={() => setHistoricalMap(null)} className="text-[9px] font-mono uppercase text-red-500 underline">Remove Source</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div 
+            onDrop={onHistoricalDrop}
+            onDragOver={(e) => { e.preventDefault(); setIsHistoricalDragging(true); }}
+            onDragLeave={() => setIsHistoricalDragging(false)}
+            onClick={() => historicalInputRef.current?.click()}
+            className={`border-2 border-dashed p-10 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all group ${
+              isHistoricalDragging ? 'border-amber-500 bg-amber-500/5' : 'border-[#141414]/20 hover:border-amber-500'
+            }`}
+          >
+            <input 
+              type="file" 
+              ref={historicalInputRef} 
+              onChange={(e) => e.target.files?.[0] && handleHistoricalUpload(e.target.files[0])}
+              className="hidden" 
+              accept="image/png,image/jpeg,image/tiff"
+            />
+            <MapIcon className={`${isHistoricalDragging ? 'opacity-100 text-amber-600' : 'opacity-20'} group-hover:opacity-100 transition-opacity`} size={32} />
+            <span className="font-mono text-[10px] uppercase opacity-50 text-center">
+              {historicalMap ? 'Replace Archive Map' : 'Upload Historical Cartography'}
+            </span>
           </div>
         </div>
       </section>
@@ -366,6 +489,26 @@ export default function Page() {
                     } transition-all duration-500`}
                     referrerPolicy="no-referrer"
                   />
+
+                  {/* Historical Overlay Layer */}
+                  {historicalMap && showHistoricalOverlay && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: historicalOpacity }}
+                      className="absolute inset-0 z-10 pointer-events-none"
+                    >
+                      <Image 
+                        src={historicalMap} 
+                        alt="Historical Overlay" 
+                        fill 
+                        className={`object-cover ${isHistoricalDifference ? 'mix-blend-difference invert saturate-200' : 'sepia contrast-125 mix-blend-multiply'}`}
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 border-2 border-amber-500/30 font-mono text-[8px] text-amber-600 p-2 uppercase">
+                        Archive Alignment Active {isHistoricalDifference && "— Difference Mode"}
+                      </div>
+                    </motion.div>
+                  )}
                   
                   {/* Grad-CAM Heatmap Simulation */}
                   {activeTab === 'xai' && (
@@ -420,6 +563,46 @@ export default function Page() {
                         />
                       </button>
                       <span className="font-mono text-[8px] uppercase font-bold w-6">{isDespeckled ? 'ON' : 'OFF'}</span>
+                    </div>
+                  </div>
+                )}
+                {historicalMap && (
+                  <div className="flex items-center gap-6 bg-white border border-[#141414]/10 px-4 py-1.5 rounded-sm shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-[8px] uppercase tracking-tighter opacity-70">Archive Overlay</span>
+                      <button 
+                        onClick={() => setShowHistoricalOverlay(!showHistoricalOverlay)}
+                        className={`w-8 h-4 rounded-full relative transition-colors ${showHistoricalOverlay ? 'bg-amber-600' : 'bg-gray-300'}`}
+                      >
+                        <motion.div 
+                          animate={{ x: showHistoricalOverlay ? 16 : 2 }}
+                          className="absolute top-1 w-2 h-2 bg-white rounded-full"
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 border-l border-[#141414]/10 pl-4">
+                      <span className="font-mono text-[8px] uppercase tracking-tighter opacity-70">Diff Mode</span>
+                      <button 
+                        onClick={() => setIsHistoricalDifference(!isHistoricalDifference)}
+                        className={`w-8 h-4 rounded-full relative transition-colors ${isHistoricalDifference ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                      >
+                        <motion.div 
+                          animate={{ x: isHistoricalDifference ? 16 : 2 }}
+                          className="absolute top-1 w-2 h-2 bg-white rounded-full"
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 border-l border-[#141414]/10 pl-4">
+                      <span className="font-mono text-[8px] opacity-50 uppercase">Opacity</span>
+                      <input 
+                        type="range" 
+                        min="0" max="1" step="0.01" 
+                        value={historicalOpacity}
+                        onChange={(e) => setHistoricalOpacity(parseFloat(e.target.value))}
+                        className="w-20 h-1 bg-gray-200 accent-amber-600 appearance-none cursor-ew-resize"
+                      />
                     </div>
                   </div>
                 )}
