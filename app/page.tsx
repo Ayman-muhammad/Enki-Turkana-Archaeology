@@ -75,6 +75,8 @@ export default function Page() {
   const [uploadedTile, setUploadedTile] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isDespeckled, setIsDespeckled] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [historicalMap, setHistoricalMap] = useState<string | null>(null);
   const [showHistoricalOverlay, setShowHistoricalOverlay] = useState(false);
   const [historicalOpacity, setHistoricalOpacity] = useState(0.5);
@@ -94,14 +96,31 @@ export default function Page() {
   };
 
   const handleFileUpload = (file: File) => {
-    if (file && (file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/tiff")) {
+    setFileError(null);
+    // Support standard PNG/JPG and common TIFF types
+    const validTypes = ["image/png", "image/jpeg", "image/tiff", "image/vnd.adobe.photoshop"];
+    const isTiff = file.name.toLowerCase().endsWith('.tif') || file.name.toLowerCase().endsWith('.tiff');
+
+    if (file && (validTypes.includes(file.type) || isTiff)) {
+      if (file.size > 25 * 1024 * 1024) { // 25MB limit for client-side processing
+        setFileError("File exceeds 25MB threshold for automated ingestion.");
+        return;
+      }
+
+      setIsProcessingFile(true);
       const reader = new FileReader();
       reader.onload = (e) => {
-        setUploadedTile(e.target?.result as string);
-        setActiveTab('rgb');
-        setAnalysisResult(null);
+        // Simulating heavy raster processing and metadata extraction
+        setTimeout(() => {
+          setUploadedTile(e.target?.result as string);
+          setActiveTab('rgb');
+          setAnalysisResult(null);
+          setIsProcessingFile(false);
+        }, 800);
       };
       reader.readAsDataURL(file);
+    } else {
+      setFileError("Invalid format. Raster ingestion requires PNG, JPG, or GeoTIFF.");
     }
   };
 
@@ -351,34 +370,78 @@ export default function Page() {
           </div>
           
           <div className="space-y-6 border-t md:border-t-0 md:border-l border-[#141414] pt-8 md:pt-0 md:pl-8">
-            <h3 className="font-mono text-xl uppercase tracking-tighter">Tile Upload</h3>
+            <h3 className="font-mono text-xl uppercase tracking-tighter">Tile Ingestion</h3>
             <div 
               onDrop={onDrop}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed p-10 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all group ${
-                isDragging ? 'border-[#141414] bg-[#141414]/5' : 'border-[#141414]/20 hover:border-[#141414]'
-              }`}
+              className={`relative border-2 border-dashed p-10 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-300 group ${
+                isDragging 
+                  ? 'border-green-600 bg-green-600/5 scale-[1.02]' 
+                  : 'border-[#141414]/20 hover:border-[#141414] hover:bg-gray-50'
+              } ${isProcessingFile ? 'origin-center animate-pulse' : ''}`}
             >
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                 className="hidden" 
-                accept="image/png,image/jpeg,image/tiff"
+                accept="image/png,image/jpeg,image/tiff,.tif,.tiff"
               />
-              <Layers className={`${isDragging ? 'opacity-100' : 'opacity-20'} group-hover:opacity-100 transition-opacity`} size={32} />
-              <span className="font-mono text-[10px] uppercase opacity-50 text-center">
-                {uploadedTile ? 'Tile Ready for Analysis' : 'Drag & Drop Raster Tile (TIFF/PNG)'}
-              </span>
-              <button className="text-[10px] font-mono border-b border-[#141414] uppercase">
-                {uploadedTile ? 'Replace File' : 'Browse Files'}
-              </button>
+              
+              <AnimatePresence mode="wait">
+                {isProcessingFile ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center gap-2"
+                  >
+                    <div className="w-12 h-12 border-2 border-t-[#141414] border-gray-200 rounded-full animate-spin" />
+                    <span className="font-mono text-[9px] uppercase font-bold tracking-widest">Decoding Raster...</span>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center gap-4"
+                  >
+                    <Layers className={`${isDragging ? 'text-green-600' : 'opacity-20'} group-hover:opacity-100 transition-opacity`} size={32} />
+                    <div className="text-center">
+                      <span className="font-mono text-[10px] uppercase opacity-50 block mb-1">
+                        {uploadedTile ? 'Source Aligned' : 'Raster Ingestion Source'}
+                      </span>
+                      <span className="font-mono text-[8px] opacity-30 uppercase">PNG, TIFF, JPG (Max 25MB)</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {isDragging && (
+                <div className="absolute inset-0 bg-green-600/10 backdrop-blur-[2px] flex items-center justify-center">
+                  <span className="font-mono text-xs font-bold text-green-700 uppercase tracking-widest">Release to Ingest Tile</span>
+                </div>
+              )}
             </div>
-            {uploadedTile && (
-              <div className="flex items-center gap-2 text-[9px] font-mono uppercase text-green-600">
-                <Zap size={10} /> Valid Raster Source Ingested
+
+            {fileError && (
+              <div className="flex items-center gap-2 text-[9px] font-mono uppercase text-red-600 border border-red-200 bg-red-50 p-2">
+                <Info size={10} /> {fileError}
+              </div>
+            )}
+
+            {uploadedTile && !isProcessingFile && !fileError && (
+              <div className="flex items-center justify-between gap-2 p-3 bg-green-50 border border-green-100">
+                <div className="flex items-center gap-2 text-[9px] font-mono uppercase text-green-700 font-bold">
+                  <Zap size={10} /> Tile Ingested Successfully
+                </div>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-[9px] font-mono border-b border-[#141414] uppercase hover:text-green-700 hover:border-green-700 transition-colors"
+                >
+                  Replace File
+                </button>
               </div>
             )}
           </div>
@@ -456,27 +519,31 @@ export default function Page() {
                   key={activeTab}
                   initial={{ opacity: 0 }}
                   animate={{ 
-                    opacity: activeTab === 'sar' ? 1 : 0.85,
+                    opacity: activeTab === 'sar' ? 1 : 0.8,
                     ...(activeTab === 'sar' && {
-                      filter: ['brightness(1)', 'brightness(1.2)', 'brightness(1)'],
-                      scale: [1, 1.015, 1],
+                      filter: [
+                        'brightness(1) contrast(1)', 
+                        'brightness(1.15) contrast(1.1)', 
+                        'brightness(1) contrast(1)'
+                      ],
+                      scale: [1, 1.01, 1],
                     })
                   }}
                   transition={{
-                    opacity: { duration: 0.4 },
+                    opacity: { duration: 0.6, ease: "easeOut" },
                     filter: {
-                      duration: 4,
+                      duration: 3,
                       repeat: Infinity,
                       ease: "easeInOut"
                     },
                     scale: {
-                      duration: 4,
+                      duration: 3,
                       repeat: Infinity,
                       ease: "easeInOut"
                     }
                   }}
                   exit={{ opacity: 0 }}
-                  className="aspect-video relative overflow-hidden bg-gray-50 flex items-center justify-center"
+                  className="aspect-video relative overflow-hidden bg-[#141414]/5 flex items-center justify-center transition-colors duration-700"
                 >
                   <Image 
                     src={images[activeTab]} 
