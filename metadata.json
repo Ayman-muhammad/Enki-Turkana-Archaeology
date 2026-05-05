@@ -1,0 +1,6 @@
+{
+  "name": "Enki-Turkana Archaeology",
+  "description": "An advanced AI-powered pipeline for detecting Roman fortified sites using multi-sensor satellite fusion and U-Net semantic segmentation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
