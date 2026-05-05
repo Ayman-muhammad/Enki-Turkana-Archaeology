@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+@theme {
+  --animate-scan: scan 6s linear infinite;
+  
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(500%); }
+  }
+}
+
+.font-display {
+  font-family: var(--font-display), sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), monospace;
+}
+
+.font-sans {
+  font-family: var(--font-sans), sans-serif;
+}
