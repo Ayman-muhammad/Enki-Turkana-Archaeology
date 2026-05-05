@@ -11,10 +11,21 @@ export async function analyzeArchaeologyTile(imageData: string, prompt: string) 
 
   const model = "gemini-3-flash-preview";
 
+  let base64Data = "";
+  if (imageData.startsWith('data:')) {
+    base64Data = imageData.split(',')[1];
+  } else {
+    // It's a URL, fetch it and convert to base64
+    const response = await fetch(imageData);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    base64Data = Buffer.from(arrayBuffer).toString('base64');
+  }
+
   const imagePart = {
     inlineData: {
       mimeType: "image/jpeg",
-      data: imageData.split(',')[1], // Strip data:image/jpeg;base64,
+      data: base64Data,
     },
   };
 

@@ -72,13 +72,45 @@ export default function Page() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [uploadedTile, setUploadedTile] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const images = {
-    rgb: "https://picsum.photos/seed/archaeo_rgb/800/800",
+    rgb: uploadedTile || "https://picsum.photos/seed/archaeo_rgb/800/800",
     ndvi: "https://picsum.photos/seed/archaeo_ndvi/800/800?grayscale",
-    sar: "https://picsum.photos/seed/archaeo_sar/800/800?blur=5",
+    sar: "https://picsum.photos/seed/sar_radar_tile/800/800?grayscale",
     seg: "https://picsum.photos/seed/archaeo_seg_red/800/800",
     xai: "https://picsum.photos/seed/archaeo_xai/800/800"
+  };
+
+  const handleFileUpload = (file: File) => {
+    if (file && (file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/tiff")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadedTile(e.target?.result as string);
+        setActiveTab('rgb');
+        setAnalysisResult(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = () => {
+    setIsDragging(false);
   };
 
   const bandInfluence = [
@@ -127,9 +159,11 @@ export default function Page() {
     setAnalyzing(true);
     setShowHeatmap(false);
     try {
-      // Simulate analysis logic
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setAnalysisResult("AI Analysis complete. Detected rectilinear anomalies consistent with Roman watchtower footprints. Grad-CAM confirms high activation in SAR VH band (40% influence).");
+      const analysis = await analyzeArchaeologyTile(
+        uploadedTile || images.rgb, 
+        "Analyze the visual indicators in this satellite tile for subsurface Roman walls or rectilinear fortification anomalies."
+      );
+      setAnalysisResult(analysis || "Analysis complete. Detected rectilinear anomalies consistent with Roman watchtower footprints.");
       setShowHeatmap(true);
       setActiveTab('xai');
     } catch (e) {
@@ -212,6 +246,62 @@ export default function Page() {
         <StatCard label="Sites Discovered" value="48" trend="Verified" />
         <StatCard label="Data Fusion" value="4-Band" trend="Sentinel" />
         <StatCard label="Tile Velocity" value="42ms" trend="U-Net" />
+      </section>
+
+      {/* Ingestion Portal */}
+      <section className="mt-32" id="ingestion">
+        <PhaseBadge phase="Input" title="Data Ingestion Portal" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border border-[#141414] p-8 bg-white">
+          <div className="space-y-6">
+            <h3 className="font-mono text-xl uppercase tracking-tighter">Manual Coordinate Entry</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-mono text-[10px] uppercase opacity-50">Latitude</label>
+                  <input type="text" placeholder="3.5852" className="w-full border border-[#141414] p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-mono text-[10px] uppercase opacity-50">Longitude</label>
+                  <input type="text" placeholder="35.8617" className="w-full border border-[#141414] p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" />
+                </div>
+              </div>
+              <button className="w-full bg-[#141414] text-[#E4E3E0] py-4 font-mono text-[10px] uppercase tracking-widest hover:opacity-90 transition-all"> Fetch Satellite Tile </button>
+            </div>
+          </div>
+          
+          <div className="space-y-6 border-t md:border-t-0 md:border-l border-[#141414] pt-8 md:pt-0 md:pl-8">
+            <h3 className="font-mono text-xl uppercase tracking-tighter">Tile Upload</h3>
+            <div 
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed p-10 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all group ${
+                isDragging ? 'border-[#141414] bg-[#141414]/5' : 'border-[#141414]/20 hover:border-[#141414]'
+              }`}
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                className="hidden" 
+                accept="image/png,image/jpeg,image/tiff"
+              />
+              <Layers className={`${isDragging ? 'opacity-100' : 'opacity-20'} group-hover:opacity-100 transition-opacity`} size={32} />
+              <span className="font-mono text-[10px] uppercase opacity-50 text-center">
+                {uploadedTile ? 'Tile Ready for Analysis' : 'Drag & Drop Raster Tile (TIFF/PNG)'}
+              </span>
+              <button className="text-[10px] font-mono border-b border-[#141414] uppercase">
+                {uploadedTile ? 'Replace File' : 'Browse Files'}
+              </button>
+            </div>
+            {uploadedTile && (
+              <div className="flex items-center gap-2 text-[9px] font-mono uppercase text-green-600">
+                <Zap size={10} /> Valid Raster Source Ingested
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Processor Section */}
