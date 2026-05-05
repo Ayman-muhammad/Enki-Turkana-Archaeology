@@ -361,7 +361,7 @@ export default function Page() {
                     fill
                     className={`object-cover grayscale ${
                       activeTab === 'xai' ? 'brightness-50' : 
-                      activeTab === 'sar' ? (isDespeckled ? 'blur-[0.8px] contrast-150 brightness-110 saturate-0' : 'brightness-105') : 
+                      activeTab === 'sar' ? (isDespeckled ? 'blur-[1.2px] contrast-[1.65] brightness-[1.05] grayscale' : 'brightness-105') : 
                       'brightness-90'
                     } transition-all duration-500`}
                     referrerPolicy="no-referrer"
@@ -407,16 +407,20 @@ export default function Page() {
               <div className="mt-6 flex justify-between items-center font-mono text-[10px] uppercase tracking-tighter opacity-50">
                 <span>Displaying: {activeTab === 'rgb' ? 'Natural Color' : activeTab === 'ndvi' ? 'Vegetation Index' : activeTab === 'sar' ? 'Radar Surface' : activeTab === 'seg' ? 'Segmentation Map' : 'Grad-CAM Heatmap'}</span>
                 {activeTab === 'sar' && (
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-2">
-                       <input 
-                         type="checkbox" 
-                         checked={isDespeckled} 
-                         onChange={() => setIsDespeckled(!isDespeckled)}
-                         className="accent-[#141414] cursor-pointer"
-                       />
-                       Pre-process (Despeckle)
-                    </span>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 bg-gray-50 border border-[#141414]/10 px-3 py-1.5 rounded-sm">
+                      <span className="font-mono text-[9px] uppercase tracking-tighter opacity-70">Despeckle Filter</span>
+                      <button 
+                        onClick={() => setIsDespeckled(!isDespeckled)}
+                        className={`w-8 h-4 rounded-full relative transition-colors ${isDespeckled ? 'bg-green-600' : 'bg-gray-300'}`}
+                      >
+                        <motion.div 
+                          animate={{ x: isDespeckled ? 16 : 2 }}
+                          className="absolute top-1 w-2 h-2 bg-white rounded-full shadow-sm"
+                        />
+                      </button>
+                      <span className="font-mono text-[8px] uppercase font-bold w-6">{isDespeckled ? 'ON' : 'OFF'}</span>
+                    </div>
                   </div>
                 )}
                 <span>Zoom Level: 1.4x</span>

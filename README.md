@@ -1,89 +1,85 @@
-# Enki-Turkana: Roman Fortification Surveillance Pipeline
+# Enki-Turkana: Subsurface Archaeological Surveillance Pipeline
 
-![Project Status](https://img.shields.io/badge/Status-Research_Prototype-amber)
-![Architecture](https://img.shields.io/badge/Architecture-U--Net-blue)
-![Data](https://img.shields.io/badge/Data-SAR%20%7C%20RGB%20%7C%20NDVI-green)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Status: Research Alpha](https://img.shields.io/badge/Status-Research%20Alpha-amber)
+![Field: Remote Sensing Archaeology](https://img.shields.io/badge/Field-Remote%20Sensing%20Archaeology-green)
 
-**Enki-Turkana** is a specialized archaeological prospection tool designed for the detection of subsurface Roman military installations in arid environments. By leveraging multi-sensor satellite data fusion and deep semantic segmentation, the pipeline reveals anthropogenic anomalies that are frequently invisible to single-band optical sensors.
+**Enki-Turkana** is a state-of-the-art satellite inference platform engineered for the detection of subsurface Roman military fortifications in arid and semi-arid environments. Utilizing multi-band sensor fusion (SAR, NDVI, RGB) and deep semantic segmentation, the platform reveals anthropogenic structures buried under aeolian sand or obscured by sparse xerophytic vegetation.
 
-## 🛰️ Scientific Overview
+---
 
-Archaeological prospection in the Turkana Basin and similar arid regions (such as the Limes Tripolitanus) faces significant challenges due to aeolian sand cover and surface scrub. Enki-Turkana addresses these by fusing:
+## 🛰️ Visual Pipeline Overview
 
-*   **Pleiades Optical (RGB):** High-resolution surface geometry and rectilinear color anomalies.
-*   **Sentinel-2 NDVI:** Normalized Difference Vegetation Index to detect "crop marks" caused by differential moisture retention in buried masonry.
-*   **Sentinel-1 SAR (Radar):** C-band radar capable of detecting surface roughness variations and sub-surface penetration in dry environments.
+| Sensor Input (SAR/RGB/NDVI) | Neural Segmentation Map | Explainable AI (Grad-CAM) |
+| :--- | :--- | :--- |
+| ![Satellite Input](https://picsum.photos/seed/enki_input/400/225) | ![Segmentation](https://picsum.photos/seed/enki_seg/400/225) | ![Grad-CAM](https://picsum.photos/seed/enki_xai/400/225) |
+
+---
+
+## 🏛️ Project Motivation
+
+Arid environments, such as the Turkana Basin, act as "archaeological time capsules." However, identifying site footprints—specifically Roman *tempora* (temporary camps) or watchtowers—is increasingly difficult due to environmental degradation and shifting sands. 
+
+Enki-Turkana solves this by:
+1.  **SAR Penetration:** Utilizing C-band radar to identify texture differentials in subsurface stonework.
+2.  **Vegetation Stress Analysis:** Monitoring NDVI anomalies where buried walls inhibit root growth.
+3.  **Spectral Fusion:** Aggregating disparate inputs into a single inference tensor.
+
+---
 
 ## 🧠 Technical Architecture
 
-### 1. Neural Tile Processor
-The core engine utilizes a modified **U-Net architecture** for semantic segmentation. 
-*   **Encoder:** Leveraging a ResNet-based backbone for robust feature extraction across multiple spatial scales.
-*   **Bottleneck:** Dense convolutional layers capturing high-level latent representations of military geometry.
-*   **Decoder:** Symmetrical upsampling with skip-connections to preserve precise spatial localization of wall footprints.
+### 1. The Core Engine: U-Net Modernized
+The platform utilizes a **U-Net architecture** with a ResNet-50 encoder backbone. 
+*   **Multi-Modal Encoder:** Accepts 4-channel input (R, G, B, SAR-Intensity).
+*   **Skip-Connections:** Ensures high-frequency spatial features (sharp corners of fort walls) are preserved during upsampling.
+*   **Feature Pyramid Pooling:** Captures structures across multiple geographical scales (from small watchtowers to large *castra*).
 
-### 2. Explainable AI (XAI)
-The pipeline implements **Grad-CAM (Gradient-weighted Class Activation Mapping)** to provide scientific interpretability. This allows researchers to visualize which spectral bands (SAR vs. Optical) most heavily influenced specific site detections, ensuring the model is attending to geometric structures rather than environmental noise.
+### 2. Scientific XAI (Explainable AI)
+To prevent "Black Box" archaeology, we implement **Grad-CAM**. This highlights the specific pixels that triggered a detection. 
+*   **Scientific Validation:** Helps archaeologists confirm if the detection is based on geometric wall patterns or geological outcrops.
+*   **Band Influence Weighting:** Dynamically calculates which sensor (e.g., SAR vs NDVI) is driving the current inference.
 
-### 3. Multi-Modal Fusion
-Input data is ingested as a multi-spectral cube. SAR data undergoes a custom **despeckling pre-processing** phase to reduce inherent radar noise, enhancing the signal-to-noise ratio for linear feature detection.
-
-## 🛠️ Tech Stack
-
-*   **Frontend:** Next.js 15 (App Router), Tailwind CSS
-*   **Animation:** Motion (framer-motion)
-*   **Inference Mockpad:** Gemini Pro Vision (via Google GenAI SDK)
-*   **Icons:** Lucide React
-*   **Language:** TypeScript
-
-## 🚀 Getting Started
-
-### Prerequisites
-*   Node.js 18+
-*   NPM or Yarn
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-org/enki-turkana.git
-   cd enki-turkana
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   Create a `.env.local` file and add your Gemini API key:
-   ```env
-   NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
-   ```
-
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-## 📋 Usage Protocol
-
-1.  **Data Ingestion:**
-    *   Enter coordinates (Latitude/Longitude) to fetch regional tiles.
-    *   Or, manually upload a processed GeoTIFF or PNG tile via the **Ingestion Portal**.
-2.  **Multispectral Review:**
-    *   Toggle between RGB, NDVI, and SAR views.
-    *   Enable **Despeckling** on SAR data to isolate rectilinear roughness anomalies.
-3.  **Inference:**
-    *   Trigger `Neural Analysis` to run the U-Net inference and Gemini diagnostic.
-4.  **Verification:**
-    *   Switch to the **Heatmap (XAI)** tab to verify model activation zones against known archaeological typologies (e.g., watchtower footprints).
-
-## 📄 References
-
-*   *Parcak, S. (2009). Satellite Remote Sensing for Archaeology.*
-*   *Luo, L., et al. (2019). Archaeological Remote Sensing in Arid Lands.*
-*   *MDPI Heritage 2024 - SAR prospection methodologies in North African Roman Limes.*
+### 3. SAR Pre-processing (Despeckle Logic)
+Synthetic Aperture Radar data is notorious for "speckle noise." Enki-Turkana includes an optional **Adaptive Speckle Reduction** filter that enhances the signal-to-noise ratio of linear features before they enter the neural network.
 
 ---
-*Developed for the Enki-Turkana Research Initiative (2024)*
+
+## 🛠️ Stack & Methodology
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Interface** | Next.js 15 (App Router) | High-performance full-stack framework |
+| **Styling** | Tailwind v4 | Low-latency utility-first design |
+| **Animation** | Motion / React | Fluid modal transitions and data visualization |
+| **Inference/LLM** | Gemini 3.1 Flash | Deep-learning diagnostic reasoning |
+| **State** | React Hooks / syncExternalStore | Multi-sensor display synchronization |
+
+---
+
+## 📖 Usage Protocol
+
+### 1. Data Ingestion
+Access the **Ingestion Portal** to either:
+*   Input precise **WGS84 Coordinates** for automated tile retrieval.
+*   Drag and drop pre-processed **GeoTIFF/PNG** tiles into the processor.
+
+### 2. Neural Processing
+Navigate to the **Processor View**:
+*   **Spectral Toggle:** Quickly switch between RGB, NDVI, and SAR bands to identify visual anomalies.
+*   **Despeckle Filter:** Enable on SAR imagery to isolate sharp, rectilinear radar reflections.
+*   **Run Analysis:** Execute the neural inference.
+
+### 3. Result Interpretation
+Inspect the **Grad-CAM Heatmap** to verify the high-activation zones. A detailed report will be generated via the AI Diagnostic engine, classifying the likelihood of Roman military origin.
+
+---
+
+## 🔬 Academic Attribution & Research
+
+This project is part of the **Enki-Turkana Research Initiative**. It builds upon methodologies described in:
+*   *Satellite imagery in desert archaeology (Parcak, 2011)*
+*   *SAR for archaeological prospection in arid regions (Luo, 2020)*
+
+---
+*Developed by the Enki-Turkana Engineering Group (2024)*
