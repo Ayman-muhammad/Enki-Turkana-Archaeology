@@ -312,8 +312,8 @@ export default function Page() {
       const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
       
       // Save both files (Image and Metadata sidecar)
-      saveAs(dataUrl, `turkana_analysis_${activeTab}_${Date.now()}.png`);
-      saveAs(blob, `turkana_analysis_${activeTab}_${Date.now()}.json`);
+      saveAs(dataUrl, `enki_turkana_${activeTab}_georef_${Date.now()}.png`);
+      saveAs(blob, `enki_turkana_${activeTab}_georef_${Date.now()}.json`);
 
       setExportComplete(true);
       setTimeout(() => setExportComplete(false), 3000);
@@ -631,6 +631,15 @@ export default function Page() {
                 {tab === 'xai' ? 'Heatmap / XAI' : tab}
               </button>
             ))}
+            <button 
+              onClick={handleExport}
+              disabled={isExporting}
+              className="px-8 py-5 font-mono text-[10px] uppercase font-bold tracking-[0.2em] bg-amber-600 text-white hover:bg-amber-700 transition-all flex items-center gap-2 border-l border-[#141414] disabled:opacity-50"
+              title="Export as Georeferenced Raster"
+            >
+              {isExporting ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Download size={14} /></motion.div> : exportComplete ? <CheckCircle2 size={14} /> : <Download size={14} />}
+              <span className="hidden sm:inline">{exportComplete ? 'Ready' : 'Export'}</span>
+            </button>
           </div>
         </div>
 
@@ -686,6 +695,30 @@ export default function Page() {
 
                   {/* Scientific CRT Filter */}
                   <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
+
+                  {/* Active HUD Overlay */}
+                  <div className="absolute inset-0 z-20 pointer-events-none p-6 flex flex-col justify-between">
+                     <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                           <div className="bg-amber-600/80 backdrop-blur-sm text-white px-2 py-0.5 text-[8px] font-mono font-bold uppercase tracking-widest flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                              Visualizing: {activeTab.toUpperCase()}
+                           </div>
+                           <div className="bg-black/40 backdrop-blur-sm text-white/60 px-2 py-0.5 text-[7px] font-mono uppercase">
+                              Channel: 0SH_{activeTab}_V2
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <span className="font-mono text-[9px] text-white/40 block">SENSOR_ID: TURKANA_A1</span>
+                           <span className="font-mono text-[9px] text-white/40 block uppercase">Azimuth: 142.4&deg;</span>
+                        </div>
+                     </div>
+
+                     <div className="flex justify-between items-end">
+                        <div className="w-16 h-16 border-l border-b border-white/20" />
+                        <div className="w-16 h-16 border-r border-b border-white/20" />
+                     </div>
+                  </div>
 
                   {/* Historical Overlay Layer */}
                   {historicalMap && showHistoricalOverlay && (
@@ -879,21 +912,6 @@ export default function Page() {
                   {analyzing ? 'Processing Tensors...' : 'Run Diagnostics'}
                   {!analyzing && <Search size={16} className="group-hover/btn:scale-110 transition-transform" />}
                 </button>
-
-                {(analysisResult || uploadedTile) && (
-                  <button 
-                    onClick={handleExport}
-                    disabled={isExporting}
-                    className="w-full mt-4 border border-white/20 text-white/80 py-6 font-mono text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50 group/btn"
-                  >
-                    {isExporting ? 'Packaging Raster...' : exportComplete ? 'Export Successful' : 'Export Analysis Layer'}
-                    {!isExporting && exportComplete ? (
-                      <CheckCircle2 size={16} className="text-green-400" />
-                    ) : (
-                      <Download size={16} className="group-hover/btn:translate-y-0.5 transition-transform" />
-                    )}
-                  </button>
-                )}
 
                 <AnimatePresence>
                   {analysisResult && (
