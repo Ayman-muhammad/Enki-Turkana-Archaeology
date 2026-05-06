@@ -3,6 +3,8 @@
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toPng } from 'html-to-image';
+import { saveAs } from 'file-saver';
 import { 
   Satellite, 
   Search, 
@@ -16,7 +18,9 @@ import {
   Info,
   ExternalLink,
   Target,
-  Zap
+  Zap,
+  Download,
+  CheckCircle2
 } from 'lucide-react';
 import { analyzeArchaeologyTile } from '@/lib/gemini';
 
@@ -106,8 +110,11 @@ export default function Page() {
   const [isHistoricalDragging, setIsHistoricalDragging] = useState(false);
   const [coords, setCoords] = useState({ lat: '', lon: '' });
   const [coordErrors, setCoordErrors] = useState({ lat: '', lon: '' });
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportComplete, setExportComplete] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const historicalInputRef = React.useRef<HTMLInputElement>(null);
+  const processorRef = React.useRef<HTMLDivElement>(null);
 
   const images = {
     rgb: uploadedTile || "https://picsum.photos/seed/archaeo_rgb/800/800",
@@ -272,6 +279,48 @@ export default function Page() {
       setAnalysisResult("AI Analysis complete. Predicted 92% probability of buried structural remains. Signatures found in SAR VH band suggest higher surface roughness.");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!processorRef.current) return;
+    setIsExporting(true);
+    setExportComplete(false);
+
+    try {
+      // Capture the processed view as a high-quality raster
+      const dataUrl = await toPng(processorRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+      });
+
+      // Simulation of Georeferencing Metadata creation
+      const metadata = {
+        sensor: activeTab.toUpperCase(),
+        timestamp: new Date().toISOString(),
+        extent: {
+          nw: [3.5852, 35.8617],
+          se: [3.5792, 35.8677]
+        },
+        crs: "EPSG:4326",
+        source: "Sentinel-1/2 Alpha Feed",
+        processing_v: "2.7.4-Enki",
+        saliency_score: 0.982
+      };
+
+      // Bundle into a blob
+      const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+      
+      // Save both files (Image and Metadata sidecar)
+      saveAs(dataUrl, `turkana_analysis_${activeTab}_${Date.now()}.png`);
+      saveAs(blob, `turkana_analysis_${activeTab}_${Date.now()}.json`);
+
+      setExportComplete(true);
+      setTimeout(() => setExportComplete(false), 3000);
+    } catch (err) {
+      console.error("Export failed", err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -587,7 +636,10 @@ export default function Page() {
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-12">
           <div className="xl:col-span-3 space-y-8">
-            <div className="border border-[#141414] p-4 bg-white relative overflow-hidden shadow-2xl shadow-black/10 group">
+            <div 
+              ref={processorRef}
+              className="border border-[#141414] p-4 bg-white relative overflow-hidden shadow-2xl shadow-black/10 group"
+            >
               <AnimatePresence mode="wait">
                 <motion.div 
                   key={activeTab}
@@ -827,6 +879,21 @@ export default function Page() {
                   {analyzing ? 'Processing Tensors...' : 'Run Diagnostics'}
                   {!analyzing && <Search size={16} className="group-hover/btn:scale-110 transition-transform" />}
                 </button>
+
+                {(analysisResult || uploadedTile) && (
+                  <button 
+                    onClick={handleExport}
+                    disabled={isExporting}
+                    className="w-full mt-4 border border-white/20 text-white/80 py-6 font-mono text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50 group/btn"
+                  >
+                    {isExporting ? 'Packaging Raster...' : exportComplete ? 'Export Successful' : 'Export Analysis Layer'}
+                    {!isExporting && exportComplete ? (
+                      <CheckCircle2 size={16} className="text-green-400" />
+                    ) : (
+                      <Download size={16} className="group-hover/btn:translate-y-0.5 transition-transform" />
+                    )}
+                  </button>
+                )}
 
                 <AnimatePresence>
                   {analysisResult && (
